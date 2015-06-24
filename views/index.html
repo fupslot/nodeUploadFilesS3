@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload files for S3</title>
+</head>
+<body>
+    <input type="file" id="file_input_1"/>
+    <hr>
+
+    <input type="file" id="file_input"/>
+    <p id="status">Please select a file</p>
+    <img id="preview" src="/images/default.png" />
+
+    <form method="POST" action="/submit_form/">
+        <input type="hidden" id="avatar_url" name="avatar_url" value="/public/default.png" />
+        <input type="text" name="username" placeholder="Username" /><br />
+        <input type="text" name="full_name" placeholder="Full name" /><br /><br />
+        <input type="submit" value="Update profile" />
+    </form>
+
+    <script>
+        (function() {
+            document.getElementById("file_input_1").onchange = function(evt){
+                var files = evt.target.files;
+                var file = files[0];
+                if(file == null){
+                    alert("No file selected.");
+                }
+                else{
+                    upload_file_1(file);
+                }
+            };
+        })();
+
+        function upload_file_1(file){
+            var boundary = "---------------------------7da24f2e50046"
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", '/upload');
+            xhr.setRequestHeader('content-type', 'multipart/form-data; boundary='+boundary);
+            xhr.setRequestHeader('content-disposition', 'form-data; name="file"');
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    console.log('File uploaded');
+                    // document.getElementById("preview").src = url;
+                    // document.getElementById("avatar_url").value = url;
+                }
+            };
+            xhr.onerror = function() {
+                alert("Could not upload file.");
+            };
+            xhr.send(file);
+        }
+
+        (function() {
+            document.getElementById("file_input").onchange = function(){
+                var files = document.getElementById("file_input").files;
+                var file = files[0];
+                if(file == null){
+                    alert("No file selected.");
+                }
+                else{
+                    get_signed_request(file);
+                }
+            };
+        })();
+
+        function get_signed_request(file){
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "/sign_s3?s3_object_name="+file.name+"&s3_object_type="+file.type);
+            xhr.onreadystatechange = function(){
+                if(xhr.readyState === 4){
+                    if(xhr.status === 200){
+                        var response = JSON.parse(xhr.responseText);
+                        upload_file(file, response.signed_request, response.url);
+                    }
+                    else{
+                        alert("Could not get signed URL.");
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        function upload_file(file, signed_request, url){
+            var xhr = new XMLHttpRequest();
+            xhr.open("PUT", signed_request);
+            xhr.setRequestHeader('x-amz-acl', 'public-read');
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    document.getElementById("preview").src = url;
+                    document.getElementById("avatar_url").value = url;
+                }
+            };
+            xhr.onerror = function() {
+                alert("Could not upload file.");
+            };
+            xhr.send(file);
+        }
+    </script>
+</body>
+</html>
